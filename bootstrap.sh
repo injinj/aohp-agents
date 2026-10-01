@@ -2,6 +2,8 @@
 # aohp-bootstrap — provision an AOHP container from a git config repo.
 # usage: aohp-bootstrap <user>/<repo> [--secrets age|keystore|paste] [--token-file F] [--age-identity F] [--passphrase-file F] [--branch B]
 set -euo pipefail
+# Whole script lives in main() so 'curl ... | bash -s -- ...' parses it completely before any command can read stdin.
+main() {
 AGENTS_REPO=${AOHP_AGENTS_REPO:-https://github.com/injinj/aohp-agents.git}
 AGENTS_DIR=${AOHP_AGENTS_DIR:-/opt/aohp-agents}
 OC_DIR=${OPENCLAW_HOME:-$HOME/.openclaw}
@@ -21,7 +23,8 @@ log "GitHub auth"
 if [ -n "$tokfile" ]; then gh auth login --with-token < "$tokfile"
 elif ! gh auth status >/dev/null 2>&1; then
   echo "  A one-time code will be shown; enter it at https://github.com/login/device from any browser."
-  gh auth login --hostname github.com --git-protocol https --web
+  if [ -r /dev/tty ]; then gh auth login --hostname github.com --git-protocol https --web < /dev/tty
+  else gh auth login --hostname github.com --git-protocol https --web; fi
 fi
 gh auth setup-git >/dev/null
 
@@ -54,3 +57,5 @@ aohp-secrets setup ${method:+--method "$method"} ${ageid:+--age-identity "$ageid
 agents=openclaw; [ -f "$OC_DIR/agents" ] && agents=$(grep -vE '^\s*(#|$)' "$OC_DIR/agents" | tr '\n' ' ')
 for a in $agents; do log "install/$a.sh"; bash "$AGENTS_DIR/install/$a.sh"; done
 log "done. secrets method: $(cat "$OC_DIR/.secrets-method" 2>/dev/null); agents: $agents"
+}
+main "$@"
