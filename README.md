@@ -24,7 +24,10 @@ aohp-bootstrap <github-user>/<config-repo>      # one command on a fresh contain
      to `~/.openclaw/.env` (mode 600).
    - **keystore**: nothing on disk; the launcher asks the AgentDriver app
      (`aohp secret get VAR`) which answers from the Android Keystore. Requires an app build
-     with the secret store.
+     whose `aohp connect` reports `features: ["secrets"]` (AOHPAgentDriverApp secret-store
+     patch + `aohp secret` CLI — see injinj/AOHPAgentDriverApp `pr/secret-store`,
+     injinj/aohp `pr/cli-secret`). Switch an existing setup with
+     `aohp-secrets migrate keystore` (moves the keys, shreds `.env`).
    - **paste**: type each required variable once; written to `~/.openclaw/.env`.
 4. Runs `install/<agent>.sh` for each agent listed in your repo's `aohp/agents` file
    (default: `openclaw`).
@@ -32,6 +35,13 @@ aohp-bootstrap <github-user>/<config-repo>      # one command on a fresh contain
 `openclaw.json` in your repo never contains a secret — use `${ANTHROPIC_API_KEY}`-style
 references; OpenClaw expands them from the environment, and the launcher wrapper installed by
 `install/openclaw.sh` supplies the environment from whichever method you picked.
+
+Verified 2026-10-01 on a OnePlus 13 (arm64 AOHP GSI, Enforcing): both the age and the
+keystore methods, gateway started as the app's `openclaw-gateway` service, model calls OK.
+
+Note: `aohp sandbox svc-stop` currently only kills the `/bin/sh -c` wrapper, not the
+service process itself; after changing secrets, kill the old gateway (`pkill -f '^openclaw-gateway'`)
+before `svc-start`, or the stale process keeps the port.
 
 ## Installers
 
