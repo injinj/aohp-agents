@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+"""age-pass: run age with a passphrase supplied non-interactively (age reads it from the tty).
+usage: age-pass <passphrase-file> age [args...]      e.g. age-pass ~/.pp age -d secrets/env.age > .env
+age's stdout goes straight to our stdout (a pipe, not the pty); the pty is only used to answer the prompt."""
+import os, pty, sys, select, errno
+pp = open(sys.argv[1]).read().strip(); cmd = sys.argv[2:]
+rfd, wfd = os.pipe()
+pid, fd = pty.fork()
+if pid == 0:
+    os.close(rfd); os.dup2(wfd, 1); os.close(wfd)
+    os.execvp(cmd[0], cmd)
+os.close(wfd)
+sent = 0; pty_open = True; pipe_open = True; err = b""
+while pty_open or pipe_open:
+    fds = ([fd] if pty_open else []) + ([rfd] if pipe_open else [])
+    try: r, _, _ = select.select(fds, [], [], 60)
+    except InterruptedError: continue
+    if not r: break
+    if fd in r:
+        try: data = os.read(fd, 4096)
+        except OSError as e:
+            if e.errno != errno.EIO: raise
+            data = b""
+        if not data: pty_open = False
+        else:
+            err += data
+            if b"assphrase" in data and sent < 2:
+                os.write(fd, (pp + "\n").encode()); sent += 1
+    if rfd in r:
+        data = os.read(rfd, 65536)
+        if not data: pipe_open = False
+        else: sys.stdout.buffer.write(data); sys.stdout.buffer.flush()
+_, status = os.waitpid(pid, 0)
+rc = os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1
+if rc != 0:
+    sys.stderr.write(err.decode(errors="replace"))
+sys.exit(rc)
