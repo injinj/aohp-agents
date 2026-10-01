@@ -40,7 +40,8 @@ else
   git -C "$OC_DIR" remote set-url origin "$url"
 fi
 git -C "$OC_DIR" fetch -q origin
-b=${branch:-$(git -C "$OC_DIR" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|origin/||')}
+b=$branch
+if [ -z "$b" ]; then b=$(git -C "$OC_DIR" ls-remote --symref origin HEAD 2>/dev/null | sed -n 's|^ref: refs/heads/\([^[:space:]]*\).*|\1|p' | head -1 || true); fi
 b=${b:-main}
 # dotfiles-style: tracked files win, untracked runtime state is kept
 git -C "$OC_DIR" checkout -q -f -B "$b" "origin/$b"
