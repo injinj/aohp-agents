@@ -1,0 +1,9 @@
+#!/bin/bash
+# aohp-update — pull aohp-agents and the config repo, re-run installers.
+set -euo pipefail
+AGENTS_DIR=${AOHP_AGENTS_DIR:-/opt/aohp-agents}; OC_DIR=${OPENCLAW_HOME:-$HOME/.openclaw}
+git -C "$AGENTS_DIR" pull -q --ff-only && echo "[update] aohp-agents $(git -C "$AGENTS_DIR" rev-parse --short HEAD)"
+install -m 755 "$AGENTS_DIR/bin/aohp-update" "$AGENTS_DIR/bin/aohp-secrets" /usr/local/bin/; install -m 755 "$AGENTS_DIR/bootstrap.sh" /usr/local/bin/aohp-bootstrap
+if [ -d "$OC_DIR/.git" ]; then git -C "$OC_DIR" pull -q --ff-only && echo "[update] config $(git -C "$OC_DIR" rev-parse --short HEAD)"; fi
+agents=openclaw; [ -f "$OC_DIR/agents" ] && agents=$(grep -vE '^\s*(#|$)' "$OC_DIR/agents" | tr '\n' ' ')
+for a in $agents; do bash "$AGENTS_DIR/install/$a.sh"; done
