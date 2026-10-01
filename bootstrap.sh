@@ -4,6 +4,7 @@
 set -euo pipefail
 # Whole script lives in main() so 'curl ... | bash -s -- ...' parses it completely before any command can read stdin.
 main() {
+umask 022   # aohp-containerd starts container processes with umask 000
 AGENTS_REPO=${AOHP_AGENTS_REPO:-https://github.com/injinj/aohp-agents.git}
 AGENTS_DIR=${AOHP_AGENTS_DIR:-/opt/aohp-agents}
 OC_DIR=${OPENCLAW_HOME:-$HOME/.openclaw}
