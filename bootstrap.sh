@@ -46,7 +46,14 @@ git -C "$OC_DIR" fetch -q origin
 b=$branch
 if [ -z "$b" ]; then b=$(git -C "$OC_DIR" ls-remote --symref origin HEAD 2>/dev/null | sed -n 's|^ref: refs/heads/\([^[:space:]]*\).*|\1|p' | head -1 || true); fi
 b=${b:-main}
-# dotfiles-style: tracked files win, untracked runtime state is kept
+# dotfiles-style: tracked files win, untracked runtime state is kept — but refuse to clobber a
+# directory (runtime state such as agents/ or workspace/memory/) with a tracked file, or vice versa.
+clash=""
+while IFS= read -r f; do
+  [ -d "$OC_DIR/$f" ] && [ ! -L "$OC_DIR/$f" ] && clash="$clash $f"
+  d=$(dirname "$f"); while [ "$d" != . ]; do [ -f "$OC_DIR/$d" ] && clash="$clash $f"; d=$(dirname "$d"); done
+done < <(git -C "$OC_DIR" ls-tree -r --name-only "origin/$b")
+[ -z "$clash" ] || { echo "refusing to check out: tracked path(s) collide with existing runtime state in $OC_DIR:$clash"; exit 1; }
 git -C "$OC_DIR" checkout -q -f -B "$b" "origin/$b"
 git -C "$OC_DIR" branch -q --set-upstream-to="origin/$b" "$b"
 [ -f "$OC_DIR/openclaw.json" ] && chmod 600 "$OC_DIR/openclaw.json"
@@ -54,7 +61,7 @@ git -C "$OC_DIR" branch -q --set-upstream-to="origin/$b" "$b"
 log "secrets"
 aohp-secrets setup ${method:+--method "$method"} ${ageid:+--age-identity "$ageid"} ${ppf:+--passphrase-file "$ppf"}
 
-agents=openclaw; [ -f "$OC_DIR/agents" ] && agents=$(grep -vE '^\s*(#|$)' "$OC_DIR/agents" | tr '\n' ' ')
+agents=openclaw; [ -f "$OC_DIR/aohp/agents" ] && agents=$(grep -vE '^\s*(#|$)' "$OC_DIR/aohp/agents" | tr '\n' ' ')
 for a in $agents; do log "install/$a.sh"; bash "$AGENTS_DIR/install/$a.sh"; done
 log "done. secrets method: $(cat "$OC_DIR/.secrets-method" 2>/dev/null); agents: $agents"
 }

@@ -26,7 +26,7 @@ aohp-bootstrap <github-user>/<config-repo>      # one command on a fresh contain
      (`aohp secret get VAR`) which answers from the Android Keystore. Requires an app build
      with the secret store.
    - **paste**: type each required variable once; written to `~/.openclaw/.env`.
-4. Runs `install/<agent>.sh` for each agent listed in your repo's `agents` file
+4. Runs `install/<agent>.sh` for each agent listed in your repo's `aohp/agents` file
    (default: `openclaw`).
 
 `openclaw.json` in your repo never contains a secret — use `${ANTHROPIC_API_KEY}`-style
@@ -47,11 +47,14 @@ listed in your config repo.
 
 ## Layout of a config repo
 
+Never track a path that OpenClaw uses for runtime state (`agents/`, `state/`, `cache/`, `workspace/memory/`…);
+bootstrap refuses to check out a repo whose tracked files collide with existing directories.
+
 ```
 openclaw.json           # with ${VAR} references, no secrets
 workspace/              # AGENTS.md, SOUL.md, skills/ …
 secrets/required        # one VAR per line, e.g. ANTHROPIC_API_KEY
 secrets/env.age         # (age method) age -p encrypted KEY=value lines
-agents                  # one installer name per line (default: openclaw)
+aohp/agents             # one installer name per line (default: openclaw)
 .gitignore              # runtime state: agents/ cache/ media/ state/ tmp/ .env *.last-good …
 ```
