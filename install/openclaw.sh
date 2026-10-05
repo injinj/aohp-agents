@@ -10,17 +10,7 @@ if [ -z "$cur" ] || [ "$VER" != latest -a "$cur" != "$VER" ] || [ "${OPENCLAW_UP
 else log "openclaw $cur present"; fi
 [ -f /usr/local/bin/openclaw.real ] || { f=$(readlink -f /usr/local/bin/openclaw); mv -f "$f" /usr/local/bin/openclaw.real 2>/dev/null || true; }
 log "launcher wrapper -> /usr/local/bin/openclaw"
-cat > /usr/local/bin/openclaw <<'EOF'
-#!/bin/bash
-# OpenClaw launcher for AOHP containers (installed by aohp-agents/install/openclaw.sh).
-# 1) secrets: export provider keys from the method chosen at bootstrap (age/paste -> ~/.openclaw/.env, keystore -> aohp secret get)
-# 2) aohp-containerd injects NODE_OPTIONS=--jitless into container services; Node 24 fetch() needs WebAssembly, so strip it.
-if command -v aohp-secrets >/dev/null 2>&1; then eval "$(aohp-secrets env 2>/dev/null)"; fi
-NODE_OPTIONS=$(printf '%s' "${NODE_OPTIONS:-}" | sed -e 's/--jitless//g' -e 's/  */ /g' -e 's/^ //' -e 's/ $//'); export NODE_OPTIONS
-# 3) the containerd service environment has no SHELL, so openclaw would run exec commands under dash; bash sets an *unexported* SHELL when the env lacks one, so export unconditionally (OnePlus lesson 2026-10-04).
-if [ -x /bin/bash ]; then export SHELL=/bin/bash; fi
-exec /usr/local/bin/openclaw.real "$@"
-EOF
-chmod 755 /usr/local/bin/openclaw
+# Single source of truth for the wrapper: install/openclaw-wrapper.sh (also baked into the rootfs templates, see template/).
+install -m 755 "$(dirname "$0")/openclaw-wrapper.sh" /usr/local/bin/openclaw
 mkdir -p "${OPENCLAW_HOME:-$HOME/.openclaw}/workspace" /tmp/openclaw; chmod 700 /tmp/openclaw
 log "$(openclaw --version 2>/dev/null | head -1)"

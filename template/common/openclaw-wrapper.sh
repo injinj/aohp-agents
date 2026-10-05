@@ -1,0 +1,1 @@
+../../install/openclaw-wrapper.sh

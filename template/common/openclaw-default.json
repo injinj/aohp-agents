@@ -1,0 +1,68 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "loopback",
+    "port": 18789,
+    "auth": {
+      "mode": "none"
+    }
+  },
+  "models": {
+    "providers": {
+      "anthropic": {}
+    }
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "/root/.openclaw/workspace",
+      "model": {
+        "primary": "anthropic/claude-sonnet-5"
+      }
+    }
+  },
+  "skills": {
+    "load": {
+      "extraDirs": [
+        "/opt/aohp-skills"
+      ]
+    }
+  },
+  "plugins": {
+    "entries": {
+      "memory-core": {
+        "config": {
+          "dreaming": {
+            "enabled": false
+          }
+        }
+      },
+      "cua-computer": {
+        "enabled": false
+      },
+      "device-pair": {
+        "enabled": false
+      },
+      "browser": {
+        "enabled": false
+      },
+      "canvas": {
+        "enabled": false
+      },
+      "geolocation": {
+        "enabled": false
+      },
+      "github": {
+        "enabled": false
+      },
+      "talk-voice": {
+        "enabled": false
+      },
+      "ollama": {
+        "enabled": false
+      },
+      "openai": {
+        "enabled": false
+      }
+    }
+  }
+}
