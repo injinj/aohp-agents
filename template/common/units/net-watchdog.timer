@@ -1,0 +1,11 @@
+# Enable with: systemctl enable --now net-watchdog.timer
+[Unit]
+Description=Run the wg0/sshd watchdog 2 min after env start, then every 5 min
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=net-watchdog.service
+
+[Install]
+WantedBy=aohp.target

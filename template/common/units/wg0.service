@@ -1,0 +1,15 @@
+# WireGuard tunnel wg0 (oneshot, stays "active (exited)"). Does nothing until the user installs
+# /etc/wireguard/wg0.conf (mode 600); see /opt/aohp-agents/net/. Enable with: systemctl enable --now wg0
+[Unit]
+Description=WireGuard tunnel wg0
+ConditionPathExists=/etc/wireguard/wg0.conf
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/wg-quick up wg0
+ExecStop=/usr/bin/wg-quick down wg0
+TimeoutStartSec=60
+
+[Install]
+WantedBy=aohp.target

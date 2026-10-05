@@ -33,6 +33,7 @@ log "agents repo -> $AGENTS_DIR"
 if [ -d "$AGENTS_DIR/.git" ]; then git -C "$AGENTS_DIR" pull -q --ff-only; else git clone -q "$AGENTS_REPO" "$AGENTS_DIR"; fi
 install -m 755 "$AGENTS_DIR/bin/aohp-update" "$AGENTS_DIR/bin/aohp-secrets" "$AGENTS_DIR/bin/age-pass" /usr/local/bin/
 install -m 755 "$AGENTS_DIR/bootstrap.sh" /usr/local/bin/aohp-bootstrap
+bash "$AGENTS_DIR/install/units.sh" >/dev/null 2>&1 || true   # unit files + systemctl shim (docs/units.md); harmless on old images
 
 log "config repo $repo -> $OC_DIR"
 mkdir -p "$OC_DIR"; chmod 700 "$OC_DIR"
@@ -64,6 +65,19 @@ aohp-secrets setup ${method:+--method "$method"} ${ageid:+--age-identity "$ageid
 
 agents=openclaw; [ -f "$OC_DIR/aohp/agents" ] && agents=$(grep -vE '^\s*(#|$)' "$OC_DIR/aohp/agents" | tr '\n' ' ')
 for a in $agents; do log "install/$a.sh"; bash "$AGENTS_DIR/install/$a.sh"; done
+
+# Start the gateway as a supervised unit (Restart=on-failure; Autostart at boot = the Driver's
+# env-start). Fallback for images whose Driver/containerd predate units: the old svc-start path.
+case " $agents " in *" openclaw "*)
+  log "openclaw-gateway unit"
+  if systemctl enable --now openclaw-gateway 2>/dev/null; then
+    systemctl status openclaw-gateway --no-log 2>/dev/null | head -3 || true
+  elif command -v aohp >/dev/null && aohp sandbox svc-start -n "$(cat /etc/aohp/env-name 2>/dev/null || echo oc)" -i openclaw-gateway -C 'openclaw gateway' >/dev/null 2>&1; then
+    log "started via svc-start (image without units; enable Autostart in the Driver app)"
+  else
+    log "could not start the gateway automatically; use the Driver app's Harness tab or 'openclaw gateway'"
+  fi
+;; esac
 log "done. secrets method: $(cat "$OC_DIR/.secrets-method" 2>/dev/null); agents: $agents"
 }
 main "$@"

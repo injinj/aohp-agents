@@ -1,0 +1,11 @@
+# Enable with: systemctl enable --now openclaw-watchdog.timer
+[Unit]
+Description=Check the OpenClaw gateway every 2 min (starting 3 min after env start)
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+Unit=openclaw-watchdog.service
+
+[Install]
+WantedBy=aohp.target

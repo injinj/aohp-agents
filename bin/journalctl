@@ -1,0 +1,34 @@
+#!/bin/sh
+# journalctl — SHIM for AOHP containers: there is no journald; unit stdout/stderr goes to
+# /data/aohp/envs/<env>/.aohp/log/<unit>.log on the Android side, readable through the Driver
+# bridge. Supports: journalctl -u UNIT [-n N] [--no-pager] [-e]; -f/--follow is polled (2 s).
+# Anything else prints this note. Docs: /opt/aohp-agents/docs/units.md
+set -u
+ENV_NAME=${AOHP_ENV:-}
+[ -n "$ENV_NAME" ] || { [ -r /etc/aohp/env-name ] && ENV_NAME=$(head -1 /etc/aohp/env-name); }
+unit=""; n=50; follow=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -u|--unit) unit=$2; shift 2 ;;
+    -u*) unit=${1#-u}; shift ;;
+    --unit=*) unit=${1#--unit=}; shift ;;
+    -n|--lines) n=$2; shift 2 ;;
+    -n*) n=${1#-n}; shift ;;
+    -f|--follow) follow=1; shift ;;
+    --no-pager|-e|--pager-end|-b|--boot|-x|--catalog|-a|--all|-q|--quiet|-o|--output) shift ;;
+    -*) echo "journalctl (aohp shim): option $1 ignored" >&2; shift ;;
+    *) shift ;;
+  esac
+done
+[ -n "$unit" ] || { echo "journalctl (aohp shim): no journal here. Use: journalctl -u <unit> [-n N] [-f]  (unit logs: aohp unit $ENV_NAME log <unit>)" >&2; exit 1; }
+[ -n "$ENV_NAME" ] || { echo "journalctl (aohp shim): cannot determine the env name" >&2; exit 4; }
+if [ -z "$follow" ]; then exec aohp unit "$ENV_NAME" log "$unit" -n "$n"; fi
+prev=""
+while :; do
+  cur=$(aohp unit "$ENV_NAME" log "$unit" -n "$n" 2>/dev/null)
+  if [ "$cur" != "$prev" ]; then
+    if [ -z "$prev" ]; then printf '%s\n' "$cur"; else printf '%s\n' "$cur" | tail -n +$(( $(printf '%s\n' "$prev" | wc -l) + 1 )) 2>/dev/null || printf '%s\n' "$cur"; fi
+    prev=$cur
+  fi
+  sleep 2
+done

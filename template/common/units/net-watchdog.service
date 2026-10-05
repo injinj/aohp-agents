@@ -1,0 +1,11 @@
+# One pass of wg0-sshd-startup.sh (repairs wg0 ip rules, restarts sshd if its pid is gone).
+# Triggered by net-watchdog.timer; harmless without wg0.conf (exit 3 -> SuccessExitStatus).
+[Unit]
+Description=wg0/sshd watchdog pass
+After=wg0.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/wg0-sshd-startup.sh
+SuccessExitStatus=0 3
+TimeoutStartSec=120

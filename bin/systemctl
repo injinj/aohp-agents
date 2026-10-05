@@ -1,0 +1,60 @@
+#!/bin/sh
+# systemctl — SHIM for AOHP containers. There is no systemd/PID 1 in an AOHP container (no PID
+# namespaces on the phone kernels); units under /etc/aohp/system are supervised by aohp-containerd
+# on the Android side. This script maps the common systemctl verbs onto 'aohp unit <env> ...',
+# which talks to the AOHP Driver bridge (ws://127.0.0.1:6666, method sandbox.unit). Docs:
+# /opt/aohp-agents/docs/units.md. Not supported: --user, edit, mask/unmask, set-property, show,
+# isolate, targets other than aohp.target, socket/path units, -f/--follow (journalctl shim).
+# Env name: /etc/aohp/env-name (written by containerd) or $AOHP_ENV.
+set -u
+ENV_NAME=${AOHP_ENV:-}
+[ -n "$ENV_NAME" ] || { [ -r /etc/aohp/env-name ] && ENV_NAME=$(head -1 /etc/aohp/env-name); }
+[ -n "$ENV_NAME" ] || { echo "systemctl (aohp shim): cannot determine the env name (/etc/aohp/env-name missing; set AOHP_ENV)" >&2; exit 4; }
+AOHP=${AOHP_CLI:-aohp}
+command -v "$AOHP" >/dev/null 2>&1 || { echo "systemctl (aohp shim): aohp CLI not on PATH" >&2; exit 4; }
+
+now=""; json=""; all=""; quiet=""; verb=""; units=""
+for a in "$@"; do
+  case "$a" in
+    --now) now=1 ;;
+    --json|--output=json|-o) json=1 ;;
+    -a|--all) all=1 ;;
+    -q|--quiet) quiet=1 ;;
+    --no-pager|--no-block|--no-legend|--plain|--full|-l|--system|--no-reload|--no-ask-password|--force|-f) ;;
+    --user) echo "systemctl (aohp shim): --user is not supported (one root user per container)" >&2; exit 1 ;;
+    -*) echo "systemctl (aohp shim): option $a ignored" >&2 ;;
+    *) if [ -z "$verb" ]; then verb=$a; else units="$units $a"; fi ;;
+  esac
+done
+[ -n "$verb" ] || verb=list-units
+j=""; [ -n "$json" ] && j="--json"
+
+run_each() { # run_each <aohp-op> [extra] -- for every unit
+  op=$1; shift
+  [ -n "$units" ] || { echo "systemctl (aohp shim): $verb needs a unit name" >&2; exit 1; }
+  rc=0
+  for u in $units; do "$AOHP" unit "$ENV_NAME" "$op" "$u" "$@" $j || rc=$?; done
+  return $rc
+}
+
+case "$verb" in
+  list-units|list|"") exec "$AOHP" unit "$ENV_NAME" list $j ;;
+  list-timers)        exec "$AOHP" timer "$ENV_NAME" list $j ;;
+  list-unit-files)    "$AOHP" unit "$ENV_NAME" list --json | sed -n 's/.*"name":"\([^"]*\)".*"enabled":\(true\|false\).*/\1 \2/p' ;;
+  status)             [ -n "$units" ] || { "$AOHP" unit "$ENV_NAME" list; exit $?; }; run_each status ;;
+  start|stop|restart|reload) run_each "$verb" ;;
+  reload-or-restart|try-restart|try-reload-or-restart) run_each restart ;;
+  enable)             run_each enable ${now:+--now} ;;
+  disable)            run_each disable ${now:+--now} ;;
+  is-active)          rc=0; for u in $units; do if [ -n "$quiet" ]; then "$AOHP" unit "$ENV_NAME" is-active "$u" >/dev/null || rc=3; else "$AOHP" unit "$ENV_NAME" is-active "$u" || rc=3; fi; done; exit $rc ;;
+  is-enabled)         rc=0; for u in $units; do st=$("$AOHP" unit "$ENV_NAME" status "$u" --json --no-log 2>/dev/null | grep -o '"enabled":[a-z]*' | cut -d: -f2); [ "$st" = true ] && { [ -n "$quiet" ] || echo enabled; } || { [ -n "$quiet" ] || echo disabled; rc=1; }; done; exit $rc ;;
+  is-failed)          rc=1; for u in $units; do st=$("$AOHP" unit "$ENV_NAME" is-active "$u" 2>/dev/null); [ "$st" = failed ] && rc=0; [ -n "$quiet" ] || echo "${st:-unknown}"; done; exit $rc ;;
+  daemon-reload)      exec "$AOHP" unit "$ENV_NAME" daemon-reload $j ;;
+  reset-failed)       exec "$AOHP" unit "$ENV_NAME" reset-failed $units ;;
+  cat)                run_each cat ;;
+  show)               run_each status --json ;;
+  default|isolate|start-env) exec "$AOHP" unit "$ENV_NAME" env-start $j ;;
+  poweroff|halt|stop-env) exec "$AOHP" unit "$ENV_NAME" env-stop $j ;;
+  --version|version)  echo "systemctl aohp-shim 1 (aohp-containerd units; not systemd)"; exit 0 ;;
+  *) echo "systemctl (aohp shim): verb '$verb' not supported. Supported: list-units list-timers list-unit-files status start stop restart reload enable disable [--now] is-active is-enabled is-failed daemon-reload reset-failed cat show" >&2; exit 1 ;;
+esac

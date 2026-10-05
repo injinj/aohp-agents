@@ -1,0 +1,20 @@
+# OpenSSH server bound to the tunnel address from /etc/ssh/sshd_config.d/10-aohp.conf
+# (copy /opt/aohp-agents/net/10-aohp.conf.template and fill ListenAddress). Disabled by default.
+[Unit]
+Description=OpenSSH server (tunnel only)
+After=wg0.service
+Wants=wg0.service
+ConditionPathExists=/etc/ssh/sshd_config.d/10-aohp.conf
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sh -c 'mkdir -p /run/sshd && ssh-keygen -A'
+ExecStartPre=/usr/sbin/sshd -t
+ExecStart=/usr/sbin/sshd -D -E /var/log/sshd.log
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+KillMode=process
+
+[Install]
+WantedBy=aohp.target

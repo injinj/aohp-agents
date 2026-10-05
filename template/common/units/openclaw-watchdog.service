@@ -1,0 +1,12 @@
+# Health check of the OpenClaw gateway (modeled on chex's openclaw-watchdog.service): GET /health
+# on the local gateway port; after 3 consecutive failures restart the openclaw-gateway unit through
+# the systemctl shim. Triggered by openclaw-watchdog.timer. Disabled by default.
+[Unit]
+Description=OpenClaw gateway health watchdog pass
+After=openclaw-gateway.service
+
+[Service]
+Type=oneshot
+Environment=OPENCLAW_HEALTH_URL=http://127.0.0.1:18789/health OPENCLAW_WATCHDOG_FAILS=3
+ExecStart=/usr/local/bin/openclaw-watchdog.sh
+TimeoutStartSec=60

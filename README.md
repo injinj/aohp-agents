@@ -13,6 +13,15 @@ aohp-bootstrap <github-user>/<config-repo>      # one command on a fresh contain
 - **Your config repo (private)** — your `~/.openclaw` (config, workspace, skills), with
   secrets either age-encrypted in the repo, kept in the phone's keystore, or pasted once.
 
+## Units (systemd-style services) — Driver 0.4.0 / ROMs 2026-10-05+
+
+The template ships systemd-subset unit files in `/etc/aohp/system` (supervised by
+aohp-containerd on the Android side; no PID namespace, so no real systemd) and a `systemctl` /
+`journalctl` shim. `openclaw-gateway.service` is enabled by default — `aohp-bootstrap` ends with
+`systemctl enable --now openclaw-gateway`, and the Driver's *Autostart* runs the env's enabled
+units at boot (`Restart=on-failure`, timers). `wg0`, `sshd`, `net-watchdog.timer`,
+`openclaw-watchdog.timer` are shipped disabled. See [docs/units.md](docs/units.md).
+
 ## Bootstrap flow
 
 1. `gh auth login --web` — an 8-character device code you enter at github.com/login/device

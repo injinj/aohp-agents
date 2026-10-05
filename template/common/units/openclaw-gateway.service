@@ -1,0 +1,25 @@
+# OpenClaw gateway as an AOHP unit (supervised by aohp-containerd; see docs/UNITS.md in
+# aohp-driver and /opt/aohp-agents/docs/units.md). Modeled on chex's openclaw-gateway.service.
+# Enabled by default in the template: the Driver's Autostart (env-start) brings it up at boot.
+# The launcher wrapper /usr/local/bin/openclaw exports SHELL=/bin/bash and loads secrets through the
+# Driver bridge (ws :6666), so the unit may fail once right after boot until the bridge is up —
+# Restart=on-failure/RestartSec=5 covers that.
+[Unit]
+Description=OpenClaw gateway
+After=wg0.service sshd.service
+Wants=wg0.service
+
+[Service]
+Type=simple
+EnvironmentFile=-/root/.openclaw/env.sh
+Environment=NODE_NO_WARNINGS=1
+WorkingDirectory=/root/.openclaw/workspace
+ExecStart=/usr/local/bin/openclaw gateway
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=0 143
+TimeoutStopSec=30
+KillMode=control-group
+
+[Install]
+WantedBy=aohp.target

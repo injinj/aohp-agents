@@ -21,6 +21,10 @@ rm -rf /opt/aohp-agents
 git clone -q --branch "$AOHP_AGENTS_REF" "$AOHP_AGENTS_REPO" /opt/aohp-agents
 install -m 755 /opt/aohp-agents/bin/aohp-update /opt/aohp-agents/bin/aohp-secrets /opt/aohp-agents/bin/age-pass /usr/local/bin/
 install -m 755 /opt/aohp-agents/bootstrap.sh /usr/local/bin/aohp-bootstrap
+# Units (systemd-subset service files supervised by aohp-containerd, docs/units.md) + the systemctl/journalctl
+# shims (/usr/local/bin precedes /usr/bin, so they shadow Debian's real systemctl, which cannot work here anyway).
+# Only openclaw-gateway.service is enabled; wg0/sshd/watchdogs stay disabled until the user enables them.
+bash /opt/aohp-agents/install/units.sh
 # Network helpers (inactive until the user configures wg0.conf + the sshd drop-in): the watchdog script on PATH,
 # sources stay in /opt/aohp-agents/net/ (-> template/common/net/). Never enabled by the template itself.
 install -m 755 /opt/aohp-agents/net/wg0-sshd-startup.sh /usr/local/bin/wg0-sshd-startup.sh
@@ -42,6 +46,9 @@ cp -r /opt/aohp-skills/. /root/.openclaw/workspace/skills/     # same skills the
 log "versions"
 NODE_OPTIONS="--jitless" openclaw --version
 aohp --help | grep -q '^ *secret' || { echo "aohp CLI lacks the 'secret' subcommand" >&2; exit 1; }
+aohp --help | grep -q '^ *unit' || { echo "aohp CLI lacks the 'unit' subcommand (need injinj/aohp feat/units)" >&2; exit 1; }
+test "$(command -v systemctl)" = /usr/local/bin/systemctl || { echo "systemctl shim not first on PATH" >&2; exit 1; }
+test -L /etc/aohp/system/aohp.target.wants/openclaw-gateway.service
 aohp --version 2>/dev/null || true
 aohp-bootstrap --help | head -2
 gh --version | head -1; age --version
