@@ -27,7 +27,7 @@ RUN sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf \
  && (pacman-key --init && pacman-key --populate) >/dev/null 2>&1 || true \
  && pacman -Syu --noconfirm --needed \
       base-devel git python python-pip jq sqlite procps-ng xz tar gzip less nano openssh file unzip zip iproute2 iputils \
-      github-cli age ca-certificates curl wget strace which inetutils \
+      github-cli age ca-certificates curl wget strace which inetutils wireguard-tools openssh \
  && pacman -Scc --noconfirm >/dev/null \
  && rm -rf /var/cache/pacman/pkg/*
 RUN readelf -n /usr/lib/libc.so.6 | grep -E 'OS: Linux' || true

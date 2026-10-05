@@ -10,11 +10,13 @@ ARG AOHP_AGENTS_REPO=https://github.com/injinj/aohp-agents.git
 ARG AOHP_AGENTS_REF=main
 ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8
 
-# Same package set as the former /aosp/templates/build-debian-template.sh (debootstrap --variant=minbase --include=...).
+# Same package set as the former /aosp/templates/build-debian-template.sh (debootstrap --variant=minbase --include=...),
+# plus wireguard-tools + openssh-server (installed, nothing enabled; see common/net/ and README "Network services").
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl wget git bash jq sqlite3 procps xz-utils less nano openssh-client \
       python3 python3-pip python3-venv build-essential pkg-config cmake gdb strace file unzip zip \
       iproute2 iputils-ping netbase tzdata gh age \
+      wireguard-tools openssh-server \
  && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb
 
 COPY common/ /tmp/provision/

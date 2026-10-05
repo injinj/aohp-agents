@@ -21,6 +21,10 @@ rm -rf /opt/aohp-agents
 git clone -q --branch "$AOHP_AGENTS_REF" "$AOHP_AGENTS_REPO" /opt/aohp-agents
 install -m 755 /opt/aohp-agents/bin/aohp-update /opt/aohp-agents/bin/aohp-secrets /opt/aohp-agents/bin/age-pass /usr/local/bin/
 install -m 755 /opt/aohp-agents/bootstrap.sh /usr/local/bin/aohp-bootstrap
+# Network helpers (inactive until the user configures wg0.conf + the sshd drop-in): the watchdog script on PATH,
+# sources stay in /opt/aohp-agents/net/ (-> template/common/net/). Never enabled by the template itself.
+install -m 755 /opt/aohp-agents/net/wg0-sshd-startup.sh /usr/local/bin/wg0-sshd-startup.sh
+test -r /opt/aohp-agents/net/10-aohp.conf.template
 
 log "openclaw $OPENCLAW_VERSION (npm; slow under qemu for arm64)"
 export NODE_OPTIONS=
@@ -41,6 +45,9 @@ aohp --help | grep -q '^ *secret' || { echo "aohp CLI lacks the 'secret' subcomm
 aohp --version 2>/dev/null || true
 aohp-bootstrap --help | head -2
 gh --version | head -1; age --version
+wg --version 2>/dev/null | head -1 || echo "wg: not installed?"; command -v sshd >/dev/null || { echo "sshd missing" >&2; exit 1; }
+rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub   # Debian postinst generates them; each container must make its own (ssh-keygen -A in the watchdog)
+test -z "$(ls /etc/ssh/ssh_host_*_key 2>/dev/null)" || { echo "host keys still present" >&2; exit 1; }
 gcc --version | head -1; python3 -V; git --version; jq --version
 
 printf 'export PATH=/root/.cargo/bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nexport LANG=C.UTF-8 TERM=xterm-256color\n' > /root/.bashrc

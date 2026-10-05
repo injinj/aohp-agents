@@ -90,6 +90,36 @@ sha256 verification; Soong `prebuilt_etc` modules `aohp-rootfs-<distro>` install
   built with `--enable-kernel=4.4` → fine on Android 6.1/6.6 kernels; `pacman` does not use SELinux.
   `NoExtract` drops man/doc/info pages.
 
+## Network services (WireGuard + sshd, opt-in)
+
+All three templates ship `wireguard-tools` and `openssh-server` **installed but inactive**: no `wg0.conf`, no sshd
+host keys, no sshd drop-in, nothing started. The kit lives in `common/net/` (= `/opt/aohp-agents/net/` inside the
+container, the script also on PATH as `/usr/local/bin/wg0-sshd-startup.sh`):
+
+- `wg0-sshd-startup.sh` — idempotent watchdog: `wg-quick up wg0` if down (cycle once on failure), checks that every
+  AllowedIPs subnet has an `ip rule … lookup 51820` (Android ignores the main table; re-cycles, then adds route+rule
+  itself), `ssh-keygen -A`, `sshd -t`, starts `sshd -E /var/log/sshd.log` if not running; status json in
+  `/var/run/aohp-cron/net-watchdog.json` (`lastRunAt exitCode repaired handshakeAgeSec sshdPid message`).
+  `--loop N` repeats every N s so it can run as a containerd service.
+- `10-aohp.conf.template` — sshd drop-in: Port 2222, `ListenAddress @LISTEN_ADDRESS@` (the wg0 address — the
+  container shares the phone's netns, never bind wildcard), key-only, `PermitRootLogin prohibit-password`, `UsePAM no`.
+
+Enable (from the Driver's Terminal tab or `aohp sandbox exec <env> …`), then register the loop as a service so the
+Driver's Autostart brings it back at boot (Driver ≥ 0.3.0 replays every recorded service, not only the gateway):
+
+```bash
+install -m 600 wg0.conf /etc/wireguard/wg0.conf                # your tunnel (AllowedIPs = the subnets to reach)
+sed 's/@LISTEN_ADDRESS@/10.100.0.5/' /opt/aohp-agents/net/10-aohp.conf.template > /etc/ssh/sshd_config.d/10-aohp.conf
+mkdir -p /root/.ssh && cat your.pub >> /root/.ssh/authorized_keys && chmod 700 /root/.ssh && chmod 600 /root/.ssh/authorized_keys
+wg0-sshd-startup.sh && cat /var/run/aohp-cron/net-watchdog.json  # one pass, check handshakeAgeSec / sshdPid
+# from the host side (chex), once:
+aohp sandbox svc-start -n <env> -i net-watchdog -C "/usr/local/bin/wg0-sshd-startup.sh --loop 300"
+```
+
+SELinux: sshd/PAM/sudo open a NETLINK_AUDIT socket at start; LineageOS+AOHP images from build-4 (2026-10-05) allow
+`aohp_container_daemon self:netlink_audit_socket`, so no `LD_PRELOAD` libnoaudit shim is needed. On an older
+image export `SSHD_LD_PRELOAD=/usr/local/lib/aohp/libnoaudit.so` before running the script.
+
 ## Security
 
 Nothing in `common/` is secret: `openclaw-default.json` has no API key (`gateway.auth.mode=none`, loopback bind),

@@ -20,6 +20,7 @@ RUN dnf -y install --allowerasing --setopt=install_weak_deps=False --setopt=tsfl
       gcc gcc-c++ glibc-devel libstdc++-devel make cmake gdb strace git python3 python3-pip jq sqlite procps-ng \
       xz tar gzip bzip2 less nano openssh-clients file unzip zip iproute iputils tzdata gh age ca-certificates \
       curl wget findutils which pkgconf-pkg-config diffutils patch hostname \
+      wireguard-tools openssh-server \
  && dnf -y clean all && rm -rf /var/cache/dnf /var/cache/libdnf5 /var/cache/yum /var/log/dnf* /var/log/hawkey.log \
  && (rpm -q rpm-plugin-selinux >/dev/null 2>&1 && dnf -y remove rpm-plugin-selinux || true) \
  && (rpm -q selinux-policy >/dev/null 2>&1 && dnf -y remove selinux-policy || true) \

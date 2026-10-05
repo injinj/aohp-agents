@@ -43,6 +43,18 @@ Note: `aohp sandbox svc-stop` currently only kills the `/bin/sh -c` wrapper, not
 service process itself; after changing secrets, kill the old gateway (`pkill -f '^openclaw-gateway'`)
 before `svc-start`, or the stale process keeps the port.
 
+## Network services (optional)
+
+The rootfs templates carry `wireguard-tools` + `openssh-server` and the kit in [`net/`](net/) (inactive by default):
+`wg0-sshd-startup.sh` (idempotent wg0 + sshd watchdog, `--loop N` for use as a containerd service, status json in
+`/var/run/aohp-cron/net-watchdog.json`) and the sshd drop-in `10-aohp.conf.template` (port 2222, key-only, bound to
+the wg0 address, `UsePAM no`). To enable: put `wg0.conf` in `/etc/wireguard/`, copy the drop-in to
+`/etc/ssh/sshd_config.d/10-aohp.conf` with the ListenAddress filled in, add your key to `/root/.ssh/authorized_keys`,
+run `wg0-sshd-startup.sh` once, then from the host
+`aohp sandbox svc-start -n <env> -i net-watchdog -C "/usr/local/bin/wg0-sshd-startup.sh --loop 300"` — the AOHP
+Driver (≥ 0.3.0) records the service and restarts it at boot. Details: [template/README.md](template/README.md)
+"Network services". `aohp-bootstrap` does not enable any of this.
+
 ## Installers
 
 | script | installs |

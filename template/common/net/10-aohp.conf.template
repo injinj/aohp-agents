@@ -1,0 +1,22 @@
+# sshd drop-in for an AOHP agent container (template, inactive until copied).
+#   cp /opt/aohp-agents/net/10-aohp.conf.template /etc/ssh/sshd_config.d/10-aohp.conf
+#   sed -i 's/@LISTEN_ADDRESS@/10.100.0.5/' /etc/ssh/sshd_config.d/10-aohp.conf   # your wg0 address
+# Debian/Fedora/Arch sshd_config all 'Include /etc/ssh/sshd_config.d/*.conf' first, so these values win
+# over the distro defaults (first value wins in sshd_config). Keep the file name sorting before the
+# distro's own drop-ins (Fedora ships 50-redhat.conf).
+#
+# Bind only to the WireGuard address: the container shares the phone's network namespace, so a wildcard
+# bind would expose sshd on Wi-Fi/mobile. Port 2222 needs no cap_net_bind_service. Key-only, root with
+# keys only. UsePAM no: PAM's account/session stack cannot work in the container (no logind, no audit).
+Port 2222
+ListenAddress @LISTEN_ADDRESS@
+PidFile /run/sshd.pid
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+PermitRootLogin prohibit-password
+UsePAM no
+X11Forwarding no
+AllowTcpForwarding yes
+ClientAliveInterval 60
+ClientAliveCountMax 3
