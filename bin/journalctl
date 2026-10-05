@@ -22,10 +22,10 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$unit" ] || { echo "journalctl (aohp shim): no journal here. Use: journalctl -u <unit> [-n N] [-f]  (unit logs: aohp unit $ENV_NAME log <unit>)" >&2; exit 1; }
 [ -n "$ENV_NAME" ] || { echo "journalctl (aohp shim): cannot determine the env name" >&2; exit 4; }
-if [ -z "$follow" ]; then exec aohp unit "$ENV_NAME" log "$unit" -n "$n"; fi
+if [ -z "$follow" ]; then exec aohp unit log "$ENV_NAME" "$unit" -n "$n"; fi
 prev=""
 while :; do
-  cur=$(aohp unit "$ENV_NAME" log "$unit" -n "$n" 2>/dev/null)
+  cur=$(aohp unit log "$ENV_NAME" "$unit" -n "$n" 2>/dev/null)
   if [ "$cur" != "$prev" ]; then
     if [ -z "$prev" ]; then printf '%s\n' "$cur"; else printf '%s\n' "$cur" | tail -n +$(( $(printf '%s\n' "$prev" | wc -l) + 1 )) 2>/dev/null || printf '%s\n' "$cur"; fi
     prev=$cur
