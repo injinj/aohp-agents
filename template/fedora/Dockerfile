@@ -2,10 +2,9 @@
 # Build with template/build-template.sh fedora <arm64|amd64>. Base: registry.fedoraproject.org/fedora:44 (multi-arch:
 # amd64 + arm64 published).
 ARG AOHP_CLI_IMAGE=localhost/aohp-cli:latest
-ARG BUILDPLATFORM=linux/amd64
+ARG FEDORA_IMAGE=registry.fedoraproject.org/fedora:44
 FROM --platform=$BUILDPLATFORM $AOHP_CLI_IMAGE AS aohp-cli
 
-ARG FEDORA_IMAGE=registry.fedoraproject.org/fedora:44
 FROM $FEDORA_IMAGE
 ARG NODE_VERSION=v24.21.0
 ARG OPENCLAW_VERSION=2026.9.6
@@ -17,7 +16,7 @@ ENV LANG=C.UTF-8
 # SELinux: the container runs chrooted on an Android kernel whose selinuxfs is visible but whose policy knows nothing
 # about Fedora file contexts. Make sure nothing in rpm/dnf tries to label files: no rpm selinux plugin, no policy,
 # and /etc/selinux/config (if a package shipped it) says disabled.
-RUN dnf -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs --allowerasing install \
+RUN dnf -y install --allowerasing --setopt=install_weak_deps=False --setopt=tsflags=nodocs \
       gcc gcc-c++ glibc-devel libstdc++-devel make cmake gdb strace git python3 python3-pip jq sqlite procps-ng \
       xz tar gzip bzip2 less nano openssh-clients file unzip zip iproute iputils tzdata gh age ca-certificates \
       curl wget findutils which pkgconf-pkg-config diffutils patch hostname \

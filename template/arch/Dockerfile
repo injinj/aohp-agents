@@ -6,10 +6,9 @@
 #          level — see template/README.md. ALARM packages can lag mainline Arch by days.
 # build-template.sh passes the right ARCH_IMAGE per arch.
 ARG AOHP_CLI_IMAGE=localhost/aohp-cli:latest
-ARG BUILDPLATFORM=linux/amd64
+ARG ARCH_IMAGE=docker.io/library/archlinux:base-devel
 FROM --platform=$BUILDPLATFORM $AOHP_CLI_IMAGE AS aohp-cli
 
-ARG ARCH_IMAGE=docker.io/library/archlinux:base-devel
 FROM $ARCH_IMAGE
 ARG NODE_VERSION=v24.21.0
 ARG OPENCLAW_VERSION=2026.9.6
@@ -17,15 +16,17 @@ ARG AOHP_AGENTS_REPO=https://github.com/injinj/aohp-agents.git
 ARG AOHP_AGENTS_REF=main
 ENV LANG=C.UTF-8
 
-# Equivalent of the Debian set (base-devel = gcc, make, binutils, pkgconf, patch, ...). Skip docs/man/info.
-RUN sed -i 's|^#\?NoExtract.*|NoExtract = usr/share/doc/* usr/share/man/* usr/share/info/* usr/share/gtk-doc/*|' /etc/pacman.conf \
- && grep -q '^NoExtract' /etc/pacman.conf || sed -i 's|^\[options\]|[options]\nNoExtract = usr/share/doc/* usr/share/man/* usr/share/info/* usr/share/gtk-doc/*|' /etc/pacman.conf \
+# Equivalent of the Debian set. base-devel = gcc 16, make, binutils, pkgconf, patch, autotools, debugedit (which pulls
+# gdb, and with it guile + boost-libs, ~140 MB — unavoidable on Arch). cmake is deliberately NOT included (another
+# ~100 MB incl. cmake-gui/ccmake; 'pacman -S cmake' adds it). The official image already NoExtracts man/doc/locale;
+# we add a few more data-only trees (i18n sources, udev hwdb, hwdata, GIR, gcc multilib libs).
+RUN sed -i '/^\[options\]/a NoExtract = usr/share/doc/* usr/share/man/* usr/share/info/* usr/share/gtk-doc/* usr/share/i18n/* usr/share/locale/* usr/lib/udev/hwdb.d/* usr/share/hwdata/* usr/share/gir-1.0/* usr/lib/gcc/*/*/32/* usr/share/groff/* usr/share/texinfo/*' /etc/pacman.conf \
  && (pacman-key --init && pacman-key --populate) >/dev/null 2>&1 || true \
  && pacman -Syu --noconfirm --needed \
       base-devel git python python-pip jq sqlite procps-ng xz tar gzip less nano openssh file unzip zip iproute2 iputils \
-      github-cli age ca-certificates curl wget cmake gdb strace which inetutils \
+      github-cli age ca-certificates curl wget strace which inetutils \
  && pacman -Scc --noconfirm >/dev/null \
- && rm -rf /var/cache/pacman/pkg/* /var/lib/pacman/sync/*.sig \
+ && rm -rf /var/cache/pacman/pkg/* \
  && readelf -n /usr/lib/libc.so.6 | grep -E 'OS: Linux' || true
 
 COPY common/ /tmp/provision/

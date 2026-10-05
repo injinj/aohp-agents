@@ -1,7 +1,6 @@
 # AOHP agent-container rootfs template: Debian trixie (glibc 2.41, gcc 14, Python 3.13), official Node, OpenClaw.
 # Build with template/build-template.sh debian <arm64|amd64> (podman build --platform; see template/README.md).
 ARG AOHP_CLI_IMAGE=localhost/aohp-cli:latest
-ARG BUILDPLATFORM=linux/amd64
 FROM --platform=$BUILDPLATFORM $AOHP_CLI_IMAGE AS aohp-cli
 
 FROM docker.io/library/debian:trixie-slim
