@@ -14,7 +14,7 @@ STATE_FILE=${STATE_FILE:-/var/run/aohp-cron/openclaw-watchdog.fails}
 mkdir -p "$(dirname "$STATE_FILE")"
 log() { echo "[$(date '+%F %T')] openclaw-watchdog: $*"; }
 
-state=$(systemctl is-active "$UNIT" 2>/dev/null || true)
+state=$(systemctl is-active "$UNIT" 2>/dev/null); [ -n "$state" ] || state=unknown
 case "$state" in
   active) ;;
   activating) log "$UNIT is activating (auto-restart), leaving it to containerd"; exit 0 ;;
