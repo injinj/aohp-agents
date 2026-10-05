@@ -31,6 +31,11 @@ RUN sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf \
  && pacman -Scc --noconfirm >/dev/null \
  && rm -rf /var/cache/pacman/pkg/*
 RUN readelf -n /usr/lib/libc.so.6 | grep -E 'OS: Linux' || true
+# Arch's gdb embeds Guile. aohp-containerd's extractor does not restore mtimes, so on the device Guile's precompiled
+# .go files look older than their .scm sources and 'gdb' (even 'gdb --version') auto-compiles Guile for ~2 minutes
+# on first use. GUILE_AUTO_COMPILE=0 makes Guile load the shipped .go files regardless (observed Cuttlefish 2026-10-04).
+RUN printf '#!/bin/sh\nexport GUILE_AUTO_COMPILE=${GUILE_AUTO_COMPILE:-0}\nexec /usr/bin/gdb "$@"\n' > /usr/local/bin/gdb && chmod 755 /usr/local/bin/gdb \
+ && printf 'export GUILE_AUTO_COMPILE=0\n' > /etc/profile.d/guile-no-autocompile.sh
 
 COPY common/ /tmp/provision/
 RUN NODE_VERSION=$NODE_VERSION sh /tmp/provision/node-install.sh
