@@ -56,7 +56,8 @@ T1=$(date +%s)
 log "image built in $((T1-T0)) s"
 
 # Export: mount the image's rootfs inside the rootless user namespace (uid 0 there == container root) and tar straight
-# from it. Hard links are dereferenced, dev/proc/sys/run are emptied, sockets/fifos dropped, owner forced to 0:0.
+# from it (the container layer is writable: resolv.conf/hostname are injected there first). Hard links are dereferenced,
+# dev/proc/sys/run are emptied, sockets/fifos dropped, owner forced to 0:0.
 CID=$(podman create --platform "$PLATFORM" "$TAG" /bin/true)
 trap 'podman rm -f "$CID" >/dev/null 2>&1 || true' EXIT
 log "export $CID -> $OUT"
@@ -65,6 +66,10 @@ podman unshare bash -c '
   CID=$1; OUT=$2; INFO=$3
   M=$(podman mount "$CID")
   cd "$M"
+  # DNS for the chroot on the device (containerd does not write one; podman bind-mounts resolv.conf during build, so
+  # it cannot be set from the Dockerfile). Also the hostname, in case the base image mounted that too.
+  rm -f etc/resolv.conf; printf "nameserver 8.8.8.8\nnameserver 8.8.4.4\n" > etc/resolv.conf; chmod 644 etc/resolv.conf
+  [ -L etc/hostname ] && rm -f etc/hostname; echo aohp-dev > etc/hostname
   HL=$(find . -xdev -type f -links +1 | wc -l)
   SPECIAL=$(find . -xdev \( -type b -o -type c -o -type p -o -type s \) | wc -l)
   DU=$(du -sm . | cut -f1)

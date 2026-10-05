@@ -4,7 +4,7 @@
 #   - installs OpenClaw via install/openclaw.sh (npm install -g openclaw@OPENCLAW_VERSION + the launcher wrapper
 #     install/openclaw-wrapper.sh: strips --jitless, exports SHELL=/bin/bash, loads secrets)
 #   - keyless default config /root/.openclaw/openclaw.json and the AOHP workspace (AGENTS.md + skills)
-#   - /root/.bashrc PATH/LANG/TERM, hostname aohp-dev, resolv.conf
+#   - /root/.bashrc PATH/LANG/TERM, hostname aohp-dev
 # The aohp CLI and /opt/aohp-skills are COPY'd in by the Dockerfile before this runs (built in template/aohp-cli.Dockerfile).
 set -euo pipefail
 OPENCLAW_VERSION=${OPENCLAW_VERSION:-2026.9.6}
@@ -13,8 +13,8 @@ AOHP_AGENTS_REF=${AOHP_AGENTS_REF:-main}
 P=/tmp/provision
 log() { echo "[agent-layer] $*"; }
 
-echo aohp-dev > /etc/hostname
-rm -f /etc/resolv.conf && printf 'nameserver 8.8.8.8\nnameserver 8.8.4.4\n' > /etc/resolv.conf
+# /etc/resolv.conf and /etc/hostname are NOT written here: podman bind-mounts both into every RUN step, so the writes
+# would not land in the image layer. build-template.sh injects them into the exported rootfs instead.
 
 log "aohp-agents ($AOHP_AGENTS_REF) -> /opt/aohp-agents"
 rm -rf /opt/aohp-agents

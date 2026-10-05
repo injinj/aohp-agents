@@ -20,14 +20,17 @@ ENV LANG=C.UTF-8
 # gdb, and with it guile + boost-libs, ~140 MB — unavoidable on Arch). cmake is deliberately NOT included (another
 # ~100 MB incl. cmake-gui/ccmake; 'pacman -S cmake' adds it). The official image already NoExtracts man/doc/locale;
 # we add a few more data-only trees (i18n sources, udev hwdb, hwdata, GIR, gcc multilib libs).
-RUN sed -i '/^\[options\]/a NoExtract = usr/share/doc/* usr/share/man/* usr/share/info/* usr/share/gtk-doc/* usr/share/i18n/* usr/share/locale/* usr/lib/udev/hwdb.d/* usr/share/hwdata/* usr/share/gir-1.0/* usr/lib/gcc/*/*/32/* usr/share/groff/* usr/share/texinfo/*' /etc/pacman.conf \
+# DisableSandbox: pacman 7's download sandbox (Landlock + the 'alpm' user) is unavailable under qemu-user and on
+# Android kernels (no CONFIG_SECURITY_LANDLOCK in GKI); without it 'pacman -Sy' fails before downloading anything.
+RUN sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf \
+ && sed -i '/^\[options\]/a NoExtract = usr/share/doc/* usr/share/man/* usr/share/info/* usr/share/gtk-doc/* usr/share/i18n/* usr/share/locale/* usr/lib/udev/hwdb.d/* usr/share/hwdata/* usr/share/gir-1.0/* usr/lib/gcc/*/*/32/* usr/share/groff/* usr/share/texinfo/*' /etc/pacman.conf \
  && (pacman-key --init && pacman-key --populate) >/dev/null 2>&1 || true \
  && pacman -Syu --noconfirm --needed \
       base-devel git python python-pip jq sqlite procps-ng xz tar gzip less nano openssh file unzip zip iproute2 iputils \
       github-cli age ca-certificates curl wget strace which inetutils \
  && pacman -Scc --noconfirm >/dev/null \
- && rm -rf /var/cache/pacman/pkg/* \
- && readelf -n /usr/lib/libc.so.6 | grep -E 'OS: Linux' || true
+ && rm -rf /var/cache/pacman/pkg/*
+RUN readelf -n /usr/lib/libc.so.6 | grep -E 'OS: Linux' || true
 
 COPY common/ /tmp/provision/
 RUN NODE_VERSION=$NODE_VERSION sh /tmp/provision/node-install.sh
