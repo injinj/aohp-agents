@@ -1,20 +1,27 @@
-# OpenSSH server bound to the tunnel address from /etc/ssh/sshd_config.d/10-aohp.conf
+# OpenSSH server bound to the tunnel address(es) from /etc/ssh/sshd_config.d/10-aohp.conf
 # (copy /opt/aohp-agents/net/10-aohp.conf.template and fill ListenAddress). Disabled by default.
+#
+# Notes (2026-10-05, Pixel 6 / OnePlus 13):
+# - LD_PRELOAD libnoaudit.so: pty logins make sshd write an audit record over the audit netlink
+#   socket; in the container that is EPERM and fatal (non-pty commands work, shells don't).
+# - No KillMode=process: the unit's main PID is the sh -c wrapper, so KillMode=process left an
+#   orphan sshd holding one ListenAddress and the next start bound only the other.
+# - -D -e (not -E file) so 'journalctl -u sshd' shows the log.
 [Unit]
 Description=OpenSSH server (tunnel only)
-After=wg0.service
+After=wg0.service tailscaled.service
 Wants=wg0.service
 ConditionPathExists=/etc/ssh/sshd_config.d/10-aohp.conf
 
 [Service]
 Type=simple
+Environment=LD_PRELOAD=/usr/local/lib/aohp/libnoaudit.so
 ExecStartPre=/bin/sh -c 'mkdir -p /run/sshd && ssh-keygen -A'
 ExecStartPre=/usr/sbin/sshd -t
-ExecStart=/usr/sbin/sshd -D -E /var/log/sshd.log
+ExecStart=/usr/sbin/sshd -D -e
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5
-KillMode=process
 
 [Install]
 WantedBy=aohp.target
